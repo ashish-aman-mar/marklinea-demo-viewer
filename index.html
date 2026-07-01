@@ -227,10 +227,40 @@
     #btn-transcript:hover { background: #444; }
     #btn-transcript.active { background: #E8985A; }
 
+    /* ── End-of-call thank-you screen ──────────────── */
+    #end-screen {
+      position: fixed; inset: 0; z-index: 100001;
+      background: #F5F0E8;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.5s ease;
+    }
+    #end-screen.hidden { display: none; }
+    #end-screen.visible { opacity: 1; }
+    .end-wordmark {
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      font-size: 22px; font-weight: 600; color: #2A2A2A;
+      letter-spacing: -0.3px; margin-bottom: 32px;
+    }
+    .end-message {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 28px; font-weight: 600; color: #2A2A2A;
+      text-align: center; line-height: 1.4; margin-bottom: 12px;
+    }
+    .end-sub {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 15px; color: #6B6B6B; text-align: center;
+    }
+    .end-accent {
+      width: 48px; height: 4px; border-radius: 2px;
+      background: #E8985A; margin-bottom: 28px;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .sp-bar { transition: none; }
       .orb.pulse { animation: none; }
       #intro-orb-view, #demo-container, #transcript-panel { transition: none; }
+      #end-screen { transition: none; }
     }
   </style>
 </head>
@@ -298,6 +328,14 @@
     </svg>
   </div>
 
+  <!-- End-of-call screen -->
+  <div id="end-screen" class="hidden">
+    <div class="end-wordmark">Marklinea</div>
+    <div class="end-accent"></div>
+    <div class="end-message">Thanks for your time.</div>
+    <div class="end-sub">We'll be in touch shortly.</div>
+  </div>
+
   <div id="demo-container" style="padding-top: 40px;"></div>
   <div id="swap-overlay"></div>
   <div id="screen-label">login</div>
@@ -327,6 +365,7 @@
     const btnEnd = document.getElementById("btn-end");
     const btnTranscript = document.getElementById("btn-transcript");
     const transcriptToggle = document.getElementById("transcript-toggle");
+    const endScreen = document.getElementById("end-screen");
 
     const TOKEN_SERVER = "http://localhost:3100";
     let room = null;
@@ -567,7 +606,7 @@
             setStatus("error", "disconnected");
             connectBtn.style.display = "";
             disconnectBtn.style.display = "none";
-            callControls.classList.add("hidden");
+            showEndScreen();
           });
 
           // Attach remote audio tracks
@@ -651,6 +690,24 @@
       if (room) { try { room.disconnect(); } catch (_) {} room = null; }
     }
 
+    // ── End screen ────────────────────────────────────────────────────────
+    function showEndScreen() {
+      // Hide all call UI
+      callControls.classList.add("hidden");
+      introOrbView.classList.add("hidden");
+      miniOrb.classList.add("hidden");
+      transcriptPanel.classList.add("hidden");
+      demoContainer.style.opacity = "0";
+      demoCursor.classList.add("hidden");
+      document.getElementById("lk-bar").style.display = "none";
+      document.getElementById("swap-overlay").style.display = "none";
+      document.getElementById("screen-label").style.display = "none";
+      document.getElementById("speaker-panel").classList.add("hidden");
+      // Show thank-you
+      endScreen.classList.remove("hidden");
+      requestAnimationFrame(() => endScreen.classList.add("visible"));
+    }
+
     // ── Disconnect ───────────────────────────────────────────────────────
     function disconnect() {
       if (cleanupVisualizer) { cleanupVisualizer(); cleanupVisualizer = null; }
@@ -658,16 +715,12 @@
       setStatus("", "disconnected");
       connectBtn.style.display = "";
       disconnectBtn.style.display = "none";
-      callControls.classList.add("hidden");
-      introOrbView.classList.add("hidden");
-      miniOrb.classList.add("hidden");
-      transcriptPanel.classList.add("hidden");
       transcriptBody.innerHTML = "";
-      demoContainer.style.opacity = "1";
       introShown = false;
       introRevealDone = false;
       isMuted = false;
       btnMute.classList.remove("muted");
+      showEndScreen();
     }
 
     // ── Transcript ───────────────────────────────────────────────────────
