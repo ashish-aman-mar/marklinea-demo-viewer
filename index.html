@@ -393,10 +393,11 @@
     const _autoConnect = !!(_paramToken && _paramUrl);
 
     if (_autoConnect) {
-      // Hide developer chrome
+      // Hide developer chrome and login view entirely
       document.getElementById("lk-bar").style.display = "none";
       document.getElementById("swap-overlay").style.display = "none";
       document.getElementById("screen-label").style.display = "none";
+      demoContainer.style.display = "none";
       // Pre-fill inputs so connect() picks them up
       urlInput.value   = _paramUrl;
       tokenInput.value = _paramToken;
@@ -452,6 +453,7 @@
       introRevealDone = true;
       introOrbView.classList.add("fade-out");
       miniOrb.classList.remove("hidden");
+      demoContainer.style.display = "";
       demoContainer.style.opacity = "1";
       setTimeout(() => { introOrbView.classList.add("hidden"); }, 500);
     }
@@ -568,7 +570,7 @@
     // ── Slide renderer ───────────────────────────────────────────────────
     let currentSlide = 0;
     function showSlide(index) {
-      if (index < 1 || index > 15) return;
+      if (index < 1 || index > 4) return;
       currentSlide = index;
       const container = document.getElementById("demo-container");
       container.innerHTML = "";
@@ -578,7 +580,7 @@
       img.style.cssText = "max-width:100%;max-height:calc(100vh - 48px);object-fit:contain;display:block;margin:0 auto;padding:8px;";
       container.appendChild(img);
       // Update overlays
-      document.getElementById("swap-overlay").textContent = `slide ${index} of 15`;
+      document.getElementById("swap-overlay").textContent = `slide ${index} of 4`;
       document.getElementById("swap-overlay").classList.add("visible");
       document.getElementById("screen-label").textContent = `slide-${index}`;
       // Send ack
