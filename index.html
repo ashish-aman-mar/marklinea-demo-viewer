@@ -477,6 +477,7 @@
 
     // ── Data handler (unified: all display commands on topic demo_control) ─
     function handleData(payload, participant, _kind, topic) {
+      console.log("DATA RECEIVED:", topic, new TextDecoder().decode(payload));
       let text = "";
       try { text = new TextDecoder().decode(payload); } catch (_) {}
       console.log("[viewer] data", { topic, from: participant?.identity, text });
