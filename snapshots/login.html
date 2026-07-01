@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marklinea</title>
+    
+    
+  <style>*, ::before, ::after { box-sizing: border-box; margin: 0px; padding: 0px; }
+:root { --bg: #2a2a2a; --bg-surface: #333; --bg-elevated: #3d3d3d; --text: #f5f0e8; --text-muted: #b8b0a4; --accent: #e8985a; --accent-hover: #d4844a; --border: #4a4a4a; --danger: #e85a5a; --success: #5ae88a; }
+html, body, #root { height: 100%; }
+body { background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; }
+.app-shell { height: 100vh; display: flex; }
+.sidebar { border-right: 1px solid var(--border); background: rgb(35, 35, 35); flex-direction: column; flex-shrink: 0; width: 240px; padding: 24px 0px; display: flex; }
+.sidebar-logo { border-bottom: 1px solid var(--border); margin-bottom: 16px; padding: 0px 24px 24px; }
+.sidebar-logo span { color: var(--accent); letter-spacing: 0.5px; font-size: 20px; font-weight: 700; }
+.sidebar-nav { flex-direction: column; gap: 4px; padding: 0px 12px; display: flex; }
+.sidebar-link { color: var(--text-muted); cursor: pointer; text-align: left; background: 0px 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 8px; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; font-size: 14px; font-weight: 500; text-decoration: none; transition: background 0.15s, color 0.15s; display: flex; }
+.sidebar-link:hover { background: var(--bg-surface); color: var(--text); }
+.sidebar-link.active { background: var(--bg-elevated); color: var(--accent); }
+.sidebar-link svg { flex-shrink: 0; width: 18px; height: 18px; }
+.main-area { flex-direction: column; flex: 1 1 0%; display: flex; overflow-y: auto; }
+.topbar { border-bottom: 1px solid var(--border); background: var(--bg); justify-content: space-between; align-items: center; padding: 16px 32px; display: flex; }
+.topbar-title { font-size: 18px; font-weight: 600; }
+.topbar-user { color: var(--text-muted); align-items: center; gap: 10px; font-size: 14px; display: flex; }
+.topbar-avatar { background: var(--accent); width: 32px; height: 32px; color: var(--bg); border-radius: 50%; justify-content: center; align-items: center; font-size: 14px; font-weight: 600; display: flex; }
+.content { flex: 1 1 0%; padding: 32px; }
+.login-page { background: var(--bg); justify-content: center; align-items: center; height: 100vh; display: flex; }
+.login-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; width: 400px; padding: 48px 40px; }
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo svg { width: 48px; height: 48px; }
+.login-logo h1 { color: var(--accent); letter-spacing: 0.5px; margin-top: 12px; font-size: 24px; font-weight: 700; }
+.login-logo p { color: var(--text-muted); margin-top: 4px; font-size: 14px; }
+.form-group { margin-bottom: 20px; }
+.form-group label { color: var(--text-muted); margin-bottom: 6px; font-size: 13px; font-weight: 500; display: block; }
+.form-group input, .form-group select { border: 1px solid var(--border); background: var(--bg); width: 100%; color: var(--text); border-radius: 8px; outline: none; padding: 10px 14px; font-family: inherit; font-size: 14px; transition: border-color 0.15s; }
+.form-group input:focus { border-color: var(--accent); }
+.btn { cursor: pointer; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 8px; justify-content: center; align-items: center; gap: 8px; padding: 10px 20px; font-family: inherit; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.15s; display: inline-flex; }
+.btn-primary { background: var(--accent); color: var(--bg); width: 100%; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--bg-elevated); color: var(--text); }
+.btn-secondary:hover { background: var(--border); }
+.stats-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px; display: grid; }
+.stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.stat-label { color: var(--text-muted); margin-bottom: 8px; font-size: 13px; }
+.stat-value { font-size: 28px; font-weight: 700; }
+.stat-change { margin-top: 4px; font-size: 12px; }
+.stat-change.positive { color: var(--success); }
+.stat-change.negative { color: var(--danger); }
+.table-section h2 { margin-bottom: 16px; font-size: 16px; font-weight: 600; }
+.data-table { border-collapse: collapse; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; overflow: hidden; }
+.data-table th, .data-table td { text-align: left; padding: 12px 16px; font-size: 14px; }
+.data-table th { background: var(--bg-elevated); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px; font-weight: 500; }
+.data-table tr + tr td { border-top: 1px solid var(--border); }
+.data-table .link { color: var(--accent); cursor: pointer; font: inherit; background: 0px 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; padding: 0px; text-decoration: none; }
+.data-table .link:hover { text-decoration: underline; }
+.status-badge { border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; display: inline-block; }
+.status-badge.active { color: var(--success); background: rgba(90, 232, 138, 0.15); }
+.status-badge.pending { color: var(--accent); background: rgba(232, 152, 90, 0.15); }
+.status-badge.closed { color: var(--danger); background: rgba(232, 90, 90, 0.15); }
+.detail-header { justify-content: space-between; align-items: center; margin-bottom: 32px; display: flex; }
+.detail-header h1 { font-size: 22px; font-weight: 700; }
+.back-link { color: var(--accent); cursor: pointer; background: 0px 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; align-items: center; gap: 6px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-flex; }
+.back-link:hover { text-decoration: underline; }
+.detail-grid { grid-template-columns: 1fr 1fr; gap: 24px; display: grid; }
+.detail-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+.detail-card h3 { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
+.detail-field { border-bottom: 1px solid var(--border); justify-content: space-between; padding: 10px 0px; font-size: 14px; display: flex; }
+.detail-field:last-child { border-bottom-width: medium; border-bottom-style: none; border-bottom-color: currentcolor; }
+.detail-field .label { color: var(--text-muted); }
+.settings-section { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; max-width: 640px; margin-bottom: 24px; padding: 24px; }
+.settings-section h2 { margin-bottom: 20px; font-size: 16px; font-weight: 600; }
+.toggle-row { border-bottom: 1px solid var(--border); justify-content: space-between; align-items: center; padding: 12px 0px; display: flex; }
+.toggle-row:last-child { border-bottom-width: medium; border-bottom-style: none; border-bottom-color: currentcolor; }
+.toggle-row .toggle-label { font-size: 14px; }
+.toggle-row .toggle-desc { color: var(--text-muted); margin-top: 2px; font-size: 12px; }
+.toggle-switch { background: var(--border); cursor: pointer; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; border-radius: 999px; flex-shrink: 0; width: 44px; height: 24px; transition: background 0.2s; position: relative; }
+.toggle-switch.on { background: var(--accent); }
+.toggle-switch::after { content: ""; background: rgb(255, 255, 255); border-radius: 50%; width: 18px; height: 18px; transition: transform 0.2s; position: absolute; top: 3px; left: 3px; }
+.toggle-switch.on::after { transform: translate(20px); }
+.settings-actions { gap: 12px; margin-top: 24px; display: flex; }
+</style></head>
+  <body>
+    <div id="root"><div class="login-page"><div class="login-card"><div class="login-logo"><svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#E8985A"></rect><path d="M14 16h20v2H14zm0 7h14v2H14zm0 7h18v2H14z" fill="#2A2A2A"></path><circle cx="36" cy="32" r="4" fill="#2A2A2A"></circle></svg><h1>Marklinea</h1><p>Sign in to your account</p></div><form><div class="form-group"><label for="email">Email</label><input id="email" placeholder="you@company.com" type="email" value="alex.morgan@acme.io"></div><div class="form-group"><label for="password">Password</label><input id="password" placeholder="••••••••" type="password" value="password123"></div><button type="button" class="btn btn-primary" data-nav="dashboard">Sign in</button></form></div></div></div>
+  
+
+</body></html>

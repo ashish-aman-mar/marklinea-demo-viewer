@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marklinea Demo Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.5/dist/livekit-client.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #1a1a1a; }
+
+    #demo-container {
+      width: 100vw;
+      height: 100vh;
+      overflow: auto;
+      opacity: 1;
+      transition: opacity 0.4s ease;
+    }
+    #demo-container.fade-out { opacity: 0; }
+
+    /* Swap-time overlay */
+    #swap-overlay {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #5AE88A;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(90, 232, 138, 0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 99999;
+      pointer-events: none;
+    }
+    #swap-overlay.visible { opacity: 1; }
+    #swap-overlay.flash { animation: flash-border 0.4s ease-out; }
+    @keyframes flash-border {
+      0%   { border-color: rgba(90, 232, 138, 0.9); box-shadow: 0 0 12px rgba(90, 232, 138, 0.4); }
+      100% { border-color: rgba(90, 232, 138, 0.3); box-shadow: none; }
+    }
+
+    /* Screen label overlay */
+    #screen-label {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #E8985A;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(232, 152, 90, 0.3);
+      z-index: 99999;
+      pointer-events: none;
+    }
+
+    /* LiveKit connection bar */
+    #lk-bar {
+      position: fixed; top: 0; left: 0; right: 0; height: 40px;
+      background: rgba(0, 0, 0, 0.9); border-bottom: 1px solid #333;
+      display: flex; align-items: center; gap: 8px; padding: 0 12px;
+      z-index: 100000; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+    }
+    #lk-bar label { color: #888; white-space: nowrap; }
+    #lk-bar input {
+      background: #1f1f1f; border: 1px solid #444; border-radius: 4px;
+      color: #F5F0E8; padding: 4px 8px; font-size: 12px; font-family: inherit; outline: none;
+    }
+    #lk-bar input:focus { border-color: #E8985A; }
+    #lk-bar input.url { width: 260px; }
+    #lk-bar input.token { width: 180px; }
+    #lk-bar input.room { width: 140px; }
+    #lk-bar button {
+      background: #E8985A; color: #1a1a1a; border: none; border-radius: 4px;
+      padding: 4px 14px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    #lk-bar button:hover { background: #D88546; }
+    #lk-bar button.disconnect {
+      background: transparent; color: #888; border: 1px solid #444;
+    }
+    #lk-bar button.disconnect:hover { color: #F5F0E8; border-color: #888; }
+    #lk-status { display: flex; align-items: center; gap: 6px; color: #888; margin-left: auto; }
+    #lk-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+    #lk-status .dot.connected { background: #5DCAA5; }
+    #lk-status .dot.error { background: #E07A7A; }
+
+    /* ── Speaking visualizer ─────────────────────────── */
+    #speaker-panel {
+      position: fixed; top: 52px; right: 16px; z-index: 99998;
+      display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+    }
+    #speaker-panel.hidden { display: none; }
+    .sp-row {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(0, 0, 0, 0.82); border: 1px solid #333; border-radius: 6px;
+      padding: 6px 12px; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .sp-row.speaking { border-color: rgba(232, 152, 90, 0.6); box-shadow: 0 0 8px rgba(232, 152, 90, 0.25); }
+    .sp-label { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: #888; width: 44px; text-align: right; flex-shrink: 0; }
+    .sp-row.speaking .sp-label { color: #E8985A; }
+    .sp-bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+    .sp-bar { width: 3px; border-radius: 1px; background: #555; transition: height 0.08s ease-out, background 0.15s; min-height: 2px; }
+    .sp-row.speaking .sp-bar { background: #E8985A; }
+
+    /* ── Demo cursor ─────────────────────────────────── */
+    #demo-cursor {
+      position: fixed; z-index: 99996; pointer-events: none;
+      width: 20px; height: 20px;
+      transition: left 0.45s cubic-bezier(0.4, 0, 0.2, 1), top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #demo-cursor.hidden { display: none; }
+    #demo-cursor svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); }
+
+    /* Click ripple */
+    .click-ripple {
+      position: fixed; z-index: 99995; pointer-events: none;
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid #E8985A; opacity: 0;
+      animation: ripple-out 0.4s ease-out forwards;
+    }
+    @keyframes ripple-out {
+      0%   { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+
+    /* Highlight ring on pointed element */
+    .demo-highlight {
+      outline: 2px solid rgba(232, 152, 90, 0.7);
+      outline-offset: 4px;
+      border-radius: 4px;
+      animation: highlight-fade 1.2s ease-out forwards;
+    }
+    @keyframes highlight-fade {
+      0%   { outline-color: rgba(232, 152, 90, 0.7); }
+      100% { outline-color: rgba(232, 152, 90, 0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #demo-cursor { transition: none; }
+      .click-ripple { animation: none; }
+      .demo-highlight { animation: none; outline-color: rgba(232, 152, 90, 0.5); }
+    }
+
+    /* ── Intro orb ───────────────────────────────────── */
+    #intro-orb-view {
+      position: fixed; inset: 0; z-index: 99997;
+      background: #2A2A2A; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    #intro-orb-view.hidden { display: none; }
+    #intro-orb-view.fade-out { opacity: 0; pointer-events: none; }
+    .orb {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #f0a96e, #E8985A 60%, #c47a3a);
+      box-shadow: 0 0 40px rgba(232, 152, 90, 0.4);
+      transition: transform 0.6s ease, width 0.6s ease, height 0.6s ease, box-shadow 0.6s ease;
+    }
+    .orb.pulse { animation: orb-pulse 1.6s ease-in-out infinite; }
+    @keyframes orb-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(232, 152, 90, 0.4); }
+      50%      { transform: scale(1.08); box-shadow: 0 0 60px rgba(232, 152, 90, 0.6); }
+    }
+    .orb-label {
+      margin-top: 20px; font-family: ui-monospace, Consolas, monospace;
+      font-size: 14px; color: #888; letter-spacing: 1px;
+    }
+    /* Mini orb in corner after shrink */
+    #mini-orb {
+      position: fixed; top: 48px; left: 12px; z-index: 99997;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #f0a96e, #E8985A 60%, #c47a3a);
+      box-shadow: 0 0 12px rgba(232, 152, 90, 0.3);
+      transition: box-shadow 0.2s;
+    }
+    #mini-orb.hidden { display: none; }
+    #mini-orb.speaking { box-shadow: 0 0 20px rgba(232, 152, 90, 0.6); }
+
+    /* ── Transcript panel ────────────────────────────── */
+    #transcript-panel {
+      position: fixed; bottom: 48px; left: 0; width: 340px; max-height: 50vh;
+      background: rgba(30, 30, 30, 0.95); border-right: 1px solid #333;
+      border-top: 1px solid #333; z-index: 99998;
+      display: flex; flex-direction: column;
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+      transition: transform 0.3s ease;
+    }
+    #transcript-panel.hidden { transform: translateX(-100%); }
+    .transcript-header {
+      padding: 8px 12px; border-bottom: 1px solid #333; color: #888;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0; cursor: pointer; user-select: none;
+    }
+    .transcript-header:hover { color: #F5F0E8; }
+    .transcript-body {
+      overflow-y: auto; padding: 8px 12px; flex: 1;
+    }
+    .tx-turn { margin-bottom: 8px; line-height: 1.4; }
+    .tx-turn .tx-who { font-weight: 600; margin-right: 6px; }
+    .tx-turn .tx-who.chloe { color: #E8985A; }
+    .tx-turn .tx-who.you { color: #5DCAA5; }
+    .tx-turn .tx-text { color: #F5F0E8; }
+
+    /* ── Floating call controls ──────────────────────── */
+    #call-controls {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 100000; display: flex; gap: 12px; padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.9); border: 1px solid #333; border-radius: 24px;
+    }
+    #call-controls.hidden { display: none; }
+    .cc-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .cc-btn svg { width: 18px; height: 18px; }
+    #btn-mute { background: #333; }
+    #btn-mute:hover { background: #444; }
+    #btn-mute.muted { background: #E07A7A; }
+    #btn-end { background: #E07A7A; }
+    #btn-end:hover { background: #c55; }
+    #btn-transcript { background: #333; }
+    #btn-transcript:hover { background: #444; }
+    #btn-transcript.active { background: #E8985A; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sp-bar { transition: none; }
+      .orb.pulse { animation: none; }
+      #intro-orb-view, #demo-container, #transcript-panel { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- LiveKit connection bar -->
+  <div id="lk-bar">
+    <label>URL</label>
+    <input class="url" id="lk-url" placeholder="wss://your-project.livekit.cloud" />
+    <label>Token</label>
+    <input class="token" id="lk-token" placeholder="paste JWT" />
+    <label>Room</label>
+    <input class="room" id="lk-room" placeholder="marklinea-demo-poc" />
+    <button id="lk-connect">Connect</button>
+    <button id="lk-disconnect" class="disconnect" style="display:none;">Disconnect</button>
+    <div id="lk-status">
+      <div class="dot" id="lk-dot"></div>
+      <span id="lk-msg">disconnected</span>
+    </div>
+  </div>
+
+  <!-- Speaking visualizer -->
+  <div id="speaker-panel" class="hidden"></div>
+
+  <!-- Intro orb (shown on connect, before first screen) -->
+  <div id="intro-orb-view" class="hidden">
+    <div class="orb pulse" id="intro-orb"></div>
+    <div class="orb-label">Chloe</div>
+  </div>
+  <div id="mini-orb" class="hidden"></div>
+
+  <!-- Transcript panel -->
+  <div id="transcript-panel" class="hidden">
+    <div class="transcript-header" id="transcript-toggle">
+      <span>Transcript</span><span>✕</span>
+    </div>
+    <div class="transcript-body" id="transcript-body"></div>
+  </div>
+
+  <!-- Call controls -->
+  <div id="call-controls" class="hidden">
+    <button class="cc-btn" id="btn-transcript" title="Toggle transcript">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </button>
+    <button class="cc-btn" id="btn-mute" title="Mute/Unmute">
+      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+    <button class="cc-btn" id="btn-end" title="End call">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Demo cursor -->
+  <div id="demo-cursor" class="hidden">
+    <svg viewBox="0 0 24 24" fill="#E8985A" stroke="#2A2A2A" stroke-width="1">
+      <path d="M5 3l14 8-6 2-4 6z"/>
+    </svg>
+  </div>
+
+  <div id="demo-container" style="padding-top: 40px;"></div>
+  <div id="swap-overlay"></div>
+  <div id="screen-label">login</div>
+
+  <script src="engine.js?v=20260611a"></script>
+  <script>
+    "use strict";
+
+    // ── DOM refs ──────────────────────────────────────────────────────────
+    const LS_PREFIX = "marklinea.viewer.";
+    const urlInput   = document.getElementById("lk-url");
+    const tokenInput = document.getElementById("lk-token");
+    const roomInput  = document.getElementById("lk-room");
+    const connectBtn = document.getElementById("lk-connect");
+    const disconnectBtn = document.getElementById("lk-disconnect");
+    const dot  = document.getElementById("lk-dot");
+    const msg  = document.getElementById("lk-msg");
+    const introOrbView = document.getElementById("intro-orb-view");
+    const introOrb = document.getElementById("intro-orb");
+    const demoCursor = document.getElementById("demo-cursor");
+    const miniOrb = document.getElementById("mini-orb");
+    const demoContainer = document.getElementById("demo-container");
+    const transcriptPanel = document.getElementById("transcript-panel");
+    const transcriptBody = document.getElementById("transcript-body");
+    const callControls = document.getElementById("call-controls");
+    const btnMute = document.getElementById("btn-mute");
+    const btnEnd = document.getElementById("btn-end");
+    const btnTranscript = document.getElementById("btn-transcript");
+    const transcriptToggle = document.getElementById("transcript-toggle");
+
+    const TOKEN_SERVER = "http://localhost:3100";
+    let room = null;
+    let isMuted = false;
+    let introShown = false;  // true while big orb is visible
+    let introRevealDone = false;  // true after first show_screen shrinks orb
+
+    // ── URL-param auto-connect (prospect-facing mode) ────────────────────
+    const _qp = new URLSearchParams(window.location.search);
+    const _paramToken = _qp.get("token") || "";
+    const _paramUrl   = _qp.get("url") || _qp.get("livekit_url") || "";
+    const _paramRoom  = _qp.get("room") || _qp.get("room_name") || "";
+    const _autoConnect = !!(_paramToken && _paramUrl);
+
+    if (_autoConnect) {
+      // Hide developer chrome
+      document.getElementById("lk-bar").style.display = "none";
+      document.getElementById("swap-overlay").style.display = "none";
+      document.getElementById("screen-label").style.display = "none";
+      // Pre-fill inputs so connect() picks them up
+      urlInput.value   = _paramUrl;
+      tokenInput.value = _paramToken;
+      roomInput.value  = _paramRoom || "marklinea-demo";
+    }
+
+    // ── localStorage (dev mode only) ─────────────────────────────────────
+    if (!_autoConnect) {
+      urlInput.value   = localStorage.getItem(LS_PREFIX + "url")   || "";
+      tokenInput.value = localStorage.getItem(LS_PREFIX + "token") || "";
+      roomInput.value  = localStorage.getItem(LS_PREFIX + "room")  || "";
+    }
+
+    // ── Token prefill (dev mode only) ────────────────────────────────────
+    if (!_autoConnect) {
+      (async function prefillToken() {
+        setStatus("", "fetching token…");
+        try {
+          const res = await fetch(TOKEN_SERVER + "/token?identity=demo-viewer");
+          if (!res.ok) throw new Error("token server returned " + res.status);
+          const data = await res.json();
+          urlInput.value   = data.url;
+          tokenInput.value = data.token;
+          roomInput.value  = data.room;
+          setStatus("", "ready — click Connect");
+        } catch (e) {
+          console.warn("Token prefill failed:", e.message);
+          setStatus("", "manual mode (token server not running)");
+        }
+      })();
+    }
+
+    function setStatus(state, text) {
+      dot.className = "dot" + (state ? " " + state : "");
+      msg.textContent = text || state || "disconnected";
+    }
+
+    // ── Screen ack (sent back to agent after DOM swap) ───────────────────
+    function sendScreenAck(screenId) {
+      if (!room) return;
+      const payload = JSON.stringify({ type: "screen_shown", screen: screenId, ts: Date.now() });
+      try {
+        room.localParticipant.publishData(
+          new TextEncoder().encode(payload), { reliable: true, topic: "screen_ack" }
+        );
+        console.log("[viewer] sent ack:", screenId);
+      } catch (e) { console.warn("[viewer] ack send failed:", e); }
+    }
+
+    // ── Intro orb reveal ─────────────────────────────────────────────────
+    function revealProductScreen() {
+      if (introRevealDone) return;
+      introRevealDone = true;
+      introOrbView.classList.add("fade-out");
+      miniOrb.classList.remove("hidden");
+      demoContainer.style.opacity = "1";
+      setTimeout(() => { introOrbView.classList.add("hidden"); }, 500);
+    }
+
+    // ── Demo cursor helpers ────────────────────────────────────────────
+    // Map screen → the data-nav value of the element to "click" on the CURRENT screen
+    const SCREEN_NAV_MAP = {
+      dashboard: "dashboard",  // sidebar Dashboard button
+      detail: "detail",        // sidebar Prospects button (or Sarah Chen row)
+      settings: "settings",    // sidebar Settings button
+      login: "dashboard",      // login "Sign in" button
+      // Zoho CRM screens — data-nav on sidebar tab elements (anchored to data-zcqa)
+      "zoho-leads": "zoho-leads",
+      "zoho-contacts": "zoho-contacts",
+      "zoho-dashboard": "zoho-dashboard",
+      "zoho-deals": "zoho-deals",
+    };
+
+    function moveCursorTo(el) {
+      if (!el) return Promise.resolve();
+      const rect = el.getBoundingClientRect();
+      const x = rect.left + rect.width / 2 - 10;
+      const y = rect.top + rect.height / 2 - 10;
+      demoCursor.classList.remove("hidden");
+      demoCursor.style.left = x + "px";
+      demoCursor.style.top = y + "px";
+      return new Promise(r => setTimeout(r, 480));  // wait for CSS transition
+    }
+
+    function clickRipple(el) {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const ripple = document.createElement("div");
+      ripple.className = "click-ripple";
+      ripple.style.left = (rect.left + rect.width / 2 - 16) + "px";
+      ripple.style.top = (rect.top + rect.height / 2 - 16) + "px";
+      document.body.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 500);
+    }
+
+    function highlightElement(el) {
+      if (!el) return;
+      el.classList.remove("demo-highlight");
+      void el.offsetWidth;
+      el.classList.add("demo-highlight");
+      setTimeout(() => el.classList.remove("demo-highlight"), 1300);
+    }
+
+    async function cursorClickNav(targetScreen) {
+      // Find the nav element for targetScreen on the CURRENT screen
+      const navValue = SCREEN_NAV_MAP[targetScreen];
+      const container = document.getElementById("demo-container");
+      // Prefer sidebar link, then any data-nav match
+      let navEl = container.querySelector(`.sidebar-link[data-nav="${navValue}"]`);
+      if (!navEl) navEl = container.querySelector(`[data-nav="${navValue}"]`);
+      if (navEl) {
+        await moveCursorTo(navEl);
+        clickRipple(navEl);
+        await new Promise(r => setTimeout(r, 120));
+      }
+    }
+
+    function pointAtTarget(target) {
+      if (!window.MarklineaEngine || !window.MarklineaEngine.findElement) return;
+      const el = window.MarklineaEngine.findElement(target);
+      if (el) {
+        moveCursorTo(el);
+        highlightElement(el);
+        console.log("[viewer] pointed at:", target);
+      } else {
+        console.log("[viewer] point target not found:", target);
+      }
+    }
+
+    // ── Data handler (unified: all display commands on topic demo_control) ─
+    function handleData(payload, participant, _kind, topic) {
+      let text = "";
+      try { text = new TextDecoder().decode(payload); } catch (_) {}
+      console.log("[viewer] data", { topic, from: participant?.identity, text });
+
+      let parsed;
+      try { parsed = JSON.parse(text); } catch (_) { return; }
+      if (!parsed || !parsed.type) return;
+
+      // show_screen → animate cursor click, then swap
+      if (parsed.type === "show_screen" && typeof parsed.screen === "string") {
+        revealProductScreen();
+        currentSlide = 0;
+        if (window.MarklineaEngine && window.MarklineaEngine.showScreen) {
+          cursorClickNav(parsed.screen).then(() =>
+            window.MarklineaEngine.showScreen(parsed.screen)
+          ).then(() => {
+            sendScreenAck(parsed.screen);
+          });
+        }
+        return;
+      }
+
+      // show_slide → render slide image
+      if (parsed.type === "show_slide" && typeof parsed.index === "number") {
+        revealProductScreen();
+        showSlide(parsed.index);
+        return;
+      }
+
+      // point → move cursor to element and highlight
+      if (parsed.type === "point" && typeof parsed.target === "string") {
+        pointAtTarget(parsed.target);
+        return;
+      }
+    }
+
+    // ── Slide renderer ───────────────────────────────────────────────────
+    let currentSlide = 0;
+    function showSlide(index) {
+      if (index < 1 || index > 15) return;
+      currentSlide = index;
+      const container = document.getElementById("demo-container");
+      container.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = `slides/slide-${index}.png`;
+      img.alt = `Slide ${index}`;
+      img.style.cssText = "max-width:100%;max-height:calc(100vh - 48px);object-fit:contain;display:block;margin:0 auto;padding:8px;";
+      container.appendChild(img);
+      // Update overlays
+      document.getElementById("swap-overlay").textContent = `slide ${index} of 15`;
+      document.getElementById("swap-overlay").classList.add("visible");
+      document.getElementById("screen-label").textContent = `slide-${index}`;
+      // Send ack
+      sendScreenAck(`slide-${index}`);
+      console.log(`[viewer] showing slide ${index}`);
+    }
+
+    // ── Connect ──────────────────────────────────────────────────────────
+    async function connect() {
+      const url   = urlInput.value.trim();
+      const token = tokenInput.value.trim();
+      const name  = roomInput.value.trim();
+      if (!url || !token || !name) { setStatus("error", "fill all fields"); return; }
+
+      localStorage.setItem(LS_PREFIX + "url",   url);
+      localStorage.setItem(LS_PREFIX + "token", token);
+      localStorage.setItem(LS_PREFIX + "room",  name);
+
+      const { Room, RoomEvent } = LivekitClient;
+
+      const attempts = [
+        { label: "normal (UDP+TCP)", rtcConfig: { iceTransportPolicy: "all" } },
+        { label: "relay (TURN only)", rtcConfig: { iceTransportPolicy: "relay" } },
+      ];
+
+      for (const attempt of attempts) {
+        setStatus("", `connecting (${attempt.label})…`);
+        console.log(`[viewer] connect attempt: ${attempt.label}`);
+
+        try {
+          if (room) { try { room.disconnect(); } catch (_) {} }
+
+          room = new Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: false });
+
+          room.on(RoomEvent.DataReceived, handleData);
+          room.on(RoomEvent.Disconnected, () => {
+            setStatus("error", "disconnected");
+            connectBtn.style.display = "";
+            disconnectBtn.style.display = "none";
+            callControls.classList.add("hidden");
+          });
+
+          // Attach remote audio tracks
+          room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+            if (track.kind === "audio") {
+              const el = track.attach();
+              el.autoplay = true;
+              el.setAttribute("playsinline", "");
+              document.body.appendChild(el);
+              el.play().catch(e => console.warn("[viewer] audio play blocked:", e));
+              console.log("[viewer] attached agent audio track:", track.sid, "from", participant?.identity);
+            }
+          });
+          room.on(RoomEvent.TrackUnsubscribed, (track) => {
+            track.detach().forEach(el => el.remove());
+            console.log("[viewer] detached track:", track.sid);
+          });
+
+          // Live transcript
+          room.on(RoomEvent.TranscriptionReceived, (segments, participant, pub) => {
+            for (const seg of segments) {
+              if (!seg.final) continue;
+              const isLocal = participant?.sid === room?.localParticipant?.sid;
+              appendTranscript(isLocal ? "You" : "Chloe", seg.text);
+            }
+          });
+
+          await room.connect(url, token, {
+            autoSubscribe: true,
+            rtcConfig: attempt.rtcConfig,
+            peerConnectionTimeout: 15000,
+          });
+
+          try { await room.startAudio(); console.log("[viewer] startAudio ok"); }
+          catch (e) { console.warn("[viewer] startAudio failed:", e); }
+
+          // Publish mic
+          try {
+            await room.localParticipant.setMicrophoneEnabled(true);
+            const micPub = Array.from(room.localParticipant.audioTrackPublications.values())[0];
+            console.log(`[viewer] mic enabled, track: ${micPub?.trackSid || '(pending)'}`);
+          } catch (micErr) {
+            console.error("[viewer] mic failed:", micErr.name, micErr.message);
+            setStatus("error", micErr.name === "NotAllowedError"
+              ? "Microphone blocked — allow it in the address bar"
+              : `Mic error: ${micErr.message}`);
+          }
+          try { await room.localParticipant.setCameraEnabled(false); } catch (_) {}
+
+          console.log(`[viewer] connected via ${attempt.label}`);
+          setStatus("connected", `connected (${attempt.label}) · mic on`);
+          connectBtn.style.display = "none";
+          disconnectBtn.style.display = "";
+
+          // Show intro orb + hide product screen
+          introShown = true;
+          introRevealDone = false;
+          introOrbView.classList.remove("hidden", "fade-out");
+          demoContainer.style.opacity = "0";
+          callControls.classList.remove("hidden");
+
+          if (cleanupVisualizer) cleanupVisualizer();
+          cleanupVisualizer = setupVisualizer(room);
+
+          // Fallback audio unlock
+          const unlockAudio = async () => {
+            document.removeEventListener("click", unlockAudio);
+            document.removeEventListener("keydown", unlockAudio);
+            if (room) { try { await room.startAudio(); } catch (_) {} }
+          };
+          document.addEventListener("click", unlockAudio, { once: true });
+          document.addEventListener("keydown", unlockAudio, { once: true });
+
+          return;
+        } catch (e) {
+          console.warn(`[viewer] ${attempt.label} failed:`, e.message || e);
+        }
+      }
+
+      setStatus("error", "connection failed (UDP + TURN)");
+      if (room) { try { room.disconnect(); } catch (_) {} room = null; }
+    }
+
+    // ── Disconnect ───────────────────────────────────────────────────────
+    function disconnect() {
+      if (cleanupVisualizer) { cleanupVisualizer(); cleanupVisualizer = null; }
+      if (room) { try { room.disconnect(); } catch (_) {} room = null; }
+      setStatus("", "disconnected");
+      connectBtn.style.display = "";
+      disconnectBtn.style.display = "none";
+      callControls.classList.add("hidden");
+      introOrbView.classList.add("hidden");
+      miniOrb.classList.add("hidden");
+      transcriptPanel.classList.add("hidden");
+      transcriptBody.innerHTML = "";
+      demoContainer.style.opacity = "1";
+      introShown = false;
+      introRevealDone = false;
+      isMuted = false;
+      btnMute.classList.remove("muted");
+    }
+
+    // ── Transcript ───────────────────────────────────────────────────────
+    function appendTranscript(who, text) {
+      if (!text || !text.trim()) return;
+      const turn = document.createElement("div");
+      turn.className = "tx-turn";
+      const label = document.createElement("span");
+      label.className = "tx-who " + (who === "Chloe" ? "chloe" : "you");
+      label.textContent = who + ":";
+      const span = document.createElement("span");
+      span.className = "tx-text";
+      span.textContent = " " + text.trim();
+      turn.appendChild(label);
+      turn.appendChild(span);
+      transcriptBody.appendChild(turn);
+      transcriptBody.scrollTop = transcriptBody.scrollHeight;
+    }
+
+    // ── Speaking visualizer ──────────────────────────────────────────────
+    const speakerPanel = document.getElementById("speaker-panel");
+    const BAR_COUNT = 6;
+    const speakerRows = new Map();
+
+    function getLabel(participant) {
+      if (participant.identity === room?.localParticipant?.identity) return "You";
+      return "Chloe";
+    }
+
+    function ensureRow(participant) {
+      if (speakerRows.has(participant.sid)) return speakerRows.get(participant.sid);
+      const row = document.createElement("div");
+      row.className = "sp-row";
+      const label = document.createElement("span");
+      label.className = "sp-label";
+      label.textContent = getLabel(participant);
+      row.appendChild(label);
+      const barsWrap = document.createElement("div");
+      barsWrap.className = "sp-bars";
+      const bars = [];
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const bar = document.createElement("div");
+        bar.className = "sp-bar";
+        bar.style.height = "2px";
+        barsWrap.appendChild(bar);
+        bars.push(bar);
+      }
+      row.appendChild(barsWrap);
+      speakerPanel.appendChild(row);
+      const entry = { el: row, bars, speaking: false };
+      speakerRows.set(participant.sid, entry);
+      speakerPanel.classList.remove("hidden");
+      return entry;
+    }
+
+    function removeRow(participant) {
+      const entry = speakerRows.get(participant.sid);
+      if (entry) { entry.el.remove(); speakerRows.delete(participant.sid); }
+      if (speakerRows.size === 0) speakerPanel.classList.add("hidden");
+    }
+
+    function updateBars(entry, level) {
+      for (let i = 0; i < entry.bars.length; i++) {
+        const base = level * 16;
+        const jitter = entry.speaking ? (Math.random() * 4 - 2) : 0;
+        const h = Math.max(2, Math.min(16, base + jitter));
+        entry.bars[i].style.height = h + "px";
+      }
+    }
+
+    function setupVisualizer(rm) {
+      const { RoomEvent } = LivekitClient;
+      ensureRow(rm.localParticipant);
+      rm.remoteParticipants.forEach(p => ensureRow(p));
+      rm.on(RoomEvent.ParticipantConnected, p => ensureRow(p));
+      rm.on(RoomEvent.ParticipantDisconnected, p => removeRow(p));
+
+      rm.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        const activeSids = new Set(speakers.map(s => s.sid));
+        speakerRows.forEach((entry, sid) => {
+          const isSpeaking = activeSids.has(sid);
+          entry.speaking = isSpeaking;
+          entry.el.classList.toggle("speaking", isSpeaking);
+        });
+        // Update mini orb glow when Chloe speaks
+        const chloeActive = speakers.some(s => s.identity !== rm.localParticipant.identity);
+        miniOrb.classList.toggle("speaking", chloeActive);
+        // Pulse intro orb with Chloe's level
+        if (introShown && !introRevealDone) {
+          const agent = Array.from(rm.remoteParticipants.values())[0];
+          if (agent) {
+            const lv = agent.audioLevel || 0;
+            const scale = 1 + lv * 0.15;
+            introOrb.style.transform = `scale(${scale})`;
+          }
+        }
+      });
+
+      let rafId = null;
+      function tick() {
+        if (!rm) return;
+        const localEntry = speakerRows.get(rm.localParticipant.sid);
+        if (localEntry) updateBars(localEntry, rm.localParticipant.audioLevel || 0);
+        rm.remoteParticipants.forEach(p => {
+          const entry = speakerRows.get(p.sid);
+          if (entry) updateBars(entry, p.audioLevel || 0);
+        });
+        rafId = requestAnimationFrame(tick);
+      }
+      rafId = requestAnimationFrame(tick);
+
+      return () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        speakerRows.forEach((_, sid) => { const e = speakerRows.get(sid); if (e) e.el.remove(); });
+        speakerRows.clear();
+        speakerPanel.classList.add("hidden");
+      };
+    }
+
+    let cleanupVisualizer = null;
+
+    // ── Call controls ────────────────────────────────────────────────────
+    btnMute.addEventListener("click", async () => {
+      if (!room) return;
+      isMuted = !isMuted;
+      try { await room.localParticipant.setMicrophoneEnabled(!isMuted); } catch (_) {}
+      btnMute.classList.toggle("muted", isMuted);
+      btnMute.title = isMuted ? "Unmute" : "Mute";
+    });
+
+    btnEnd.addEventListener("click", disconnect);
+
+    btnTranscript.addEventListener("click", () => {
+      transcriptPanel.classList.toggle("hidden");
+      btnTranscript.classList.toggle("active", !transcriptPanel.classList.contains("hidden"));
+    });
+
+    transcriptToggle.addEventListener("click", () => {
+      transcriptPanel.classList.add("hidden");
+      btnTranscript.classList.remove("active");
+    });
+
+    connectBtn.addEventListener("click", connect);
+    disconnectBtn.addEventListener("click", disconnect);
+
+    // ── Auto-connect from URL params ──────────────────────────────────────
+    if (_autoConnect) {
+      connect();
+    }
+  </script>
+</body>
+</html>

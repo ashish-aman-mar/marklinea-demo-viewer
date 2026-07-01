@@ -1,0 +1,106 @@
+[
+  {
+    "screen": "login",
+    "toScreen": "dashboard"
+  },
+  {
+    "screen": "dashboard",
+    "toScreen": "dashboard"
+  },
+  {
+    "screen": "dashboard",
+    "toScreen": "detail"
+  },
+  {
+    "screen": "dashboard",
+    "toScreen": "settings"
+  },
+  {
+    "screen": "detail",
+    "toScreen": "dashboard"
+  },
+  {
+    "screen": "detail",
+    "toScreen": "detail"
+  },
+  {
+    "screen": "detail",
+    "toScreen": "settings"
+  },
+  {
+    "screen": "settings",
+    "toScreen": "dashboard"
+  },
+  {
+    "screen": "settings",
+    "toScreen": "detail"
+  },
+  {
+    "screen": "settings",
+    "toScreen": "settings"
+  },
+  {
+    "screen": "zoho-leads",
+    "toScreen": "zoho-leads"
+  },
+  {
+    "screen": "zoho-leads",
+    "toScreen": "zoho-contacts"
+  },
+  {
+    "screen": "zoho-leads",
+    "toScreen": "zoho-dashboard"
+  },
+  {
+    "screen": "zoho-leads",
+    "toScreen": "zoho-deals"
+  },
+  {
+    "screen": "zoho-contacts",
+    "toScreen": "zoho-leads"
+  },
+  {
+    "screen": "zoho-contacts",
+    "toScreen": "zoho-contacts"
+  },
+  {
+    "screen": "zoho-contacts",
+    "toScreen": "zoho-dashboard"
+  },
+  {
+    "screen": "zoho-contacts",
+    "toScreen": "zoho-deals"
+  },
+  {
+    "screen": "zoho-dashboard",
+    "toScreen": "zoho-leads"
+  },
+  {
+    "screen": "zoho-dashboard",
+    "toScreen": "zoho-contacts"
+  },
+  {
+    "screen": "zoho-dashboard",
+    "toScreen": "zoho-dashboard"
+  },
+  {
+    "screen": "zoho-dashboard",
+    "toScreen": "zoho-deals"
+  },
+  {
+    "screen": "zoho-deals",
+    "toScreen": "zoho-leads"
+  },
+  {
+    "screen": "zoho-deals",
+    "toScreen": "zoho-contacts"
+  },
+  {
+    "screen": "zoho-deals",
+    "toScreen": "zoho-dashboard"
+  },
+  {
+    "screen": "zoho-deals",
+    "toScreen": "zoho-deals"
+  }
+]
