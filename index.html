@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.5/dist/livekit-client.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; background: #1a1a1a; }
+    html, body { height: 100%; overflow: hidden; background: #F5F0E8; font-family: system-ui, -apple-system, sans-serif; }
 
     #demo-container {
       width: 100vw;
@@ -15,21 +15,29 @@
       overflow: auto;
       opacity: 1;
       transition: opacity 0.4s ease;
+      display: flex; align-items: center; justify-content: center;
+      background: #F5F0E8;
     }
     #demo-container.fade-out { opacity: 0; }
+    /* Slide images get a charcoal frame + shadow */
+    #demo-container img {
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(42, 42, 42, 0.15), 0 1px 4px rgba(42, 42, 42, 0.08);
+      border: 1px solid #E0DCD4;
+    }
 
     /* Swap-time overlay */
     #swap-overlay {
       position: fixed;
       bottom: 16px;
       right: 16px;
-      background: rgba(0, 0, 0, 0.85);
-      color: #5AE88A;
+      background: rgba(255, 255, 255, 0.9);
+      color: #2A2A2A;
       font-family: ui-monospace, Consolas, monospace;
       font-size: 13px;
       padding: 6px 14px;
       border-radius: 8px;
-      border: 1px solid rgba(90, 232, 138, 0.3);
+      border: 1px solid #E0DCD4;
       opacity: 0;
       transition: opacity 0.2s;
       z-index: 99999;
@@ -38,8 +46,8 @@
     #swap-overlay.visible { opacity: 1; }
     #swap-overlay.flash { animation: flash-border 0.4s ease-out; }
     @keyframes flash-border {
-      0%   { border-color: rgba(90, 232, 138, 0.9); box-shadow: 0 0 12px rgba(90, 232, 138, 0.4); }
-      100% { border-color: rgba(90, 232, 138, 0.3); box-shadow: none; }
+      0%   { border-color: #E8985A; box-shadow: 0 0 8px rgba(232, 152, 90, 0.3); }
+      100% { border-color: #E0DCD4; box-shadow: none; }
     }
 
     /* Screen label overlay */
@@ -47,44 +55,44 @@
       position: fixed;
       bottom: 16px;
       left: 16px;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(255, 255, 255, 0.9);
       color: #E8985A;
       font-family: ui-monospace, Consolas, monospace;
       font-size: 13px;
       padding: 6px 14px;
       border-radius: 8px;
-      border: 1px solid rgba(232, 152, 90, 0.3);
+      border: 1px solid #E0DCD4;
       z-index: 99999;
       pointer-events: none;
     }
 
-    /* LiveKit connection bar */
+    /* LiveKit connection bar (dev chrome, hidden in auto-connect) */
     #lk-bar {
       position: fixed; top: 0; left: 0; right: 0; height: 40px;
-      background: rgba(0, 0, 0, 0.9); border-bottom: 1px solid #333;
+      background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid #E0DCD4;
       display: flex; align-items: center; gap: 8px; padding: 0 12px;
       z-index: 100000; font-family: ui-monospace, Consolas, monospace; font-size: 12px;
     }
-    #lk-bar label { color: #888; white-space: nowrap; }
+    #lk-bar label { color: #6B6B6B; white-space: nowrap; }
     #lk-bar input {
-      background: #1f1f1f; border: 1px solid #444; border-radius: 4px;
-      color: #F5F0E8; padding: 4px 8px; font-size: 12px; font-family: inherit; outline: none;
+      background: #F9F7F3; border: 1px solid #E0DCD4; border-radius: 4px;
+      color: #2A2A2A; padding: 4px 8px; font-size: 12px; font-family: inherit; outline: none;
     }
     #lk-bar input:focus { border-color: #E8985A; }
     #lk-bar input.url { width: 260px; }
     #lk-bar input.token { width: 180px; }
     #lk-bar input.room { width: 140px; }
     #lk-bar button {
-      background: #E8985A; color: #1a1a1a; border: none; border-radius: 4px;
+      background: #E8985A; color: #fff; border: none; border-radius: 4px;
       padding: 4px 14px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
-    #lk-bar button:hover { background: #D88546; }
+    #lk-bar button:hover { background: #D4884E; }
     #lk-bar button.disconnect {
-      background: transparent; color: #888; border: 1px solid #444;
+      background: transparent; color: #6B6B6B; border: 1px solid #E0DCD4;
     }
-    #lk-bar button.disconnect:hover { color: #F5F0E8; border-color: #888; }
-    #lk-status { display: flex; align-items: center; gap: 6px; color: #888; margin-left: auto; }
-    #lk-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+    #lk-bar button.disconnect:hover { color: #2A2A2A; border-color: #999; }
+    #lk-status { display: flex; align-items: center; gap: 6px; color: #6B6B6B; margin-left: auto; }
+    #lk-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
     #lk-status .dot.connected { background: #5DCAA5; }
     #lk-status .dot.error { background: #E07A7A; }
 
@@ -96,14 +104,15 @@
     #speaker-panel.hidden { display: none; }
     .sp-row {
       display: flex; align-items: center; gap: 10px;
-      background: rgba(0, 0, 0, 0.82); border: 1px solid #333; border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92); border: 1px solid #E0DCD4; border-radius: 6px;
       padding: 6px 12px; transition: border-color 0.2s, box-shadow 0.2s;
+      backdrop-filter: blur(8px);
     }
-    .sp-row.speaking { border-color: rgba(232, 152, 90, 0.6); box-shadow: 0 0 8px rgba(232, 152, 90, 0.25); }
-    .sp-label { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: #888; width: 44px; text-align: right; flex-shrink: 0; }
+    .sp-row.speaking { border-color: #E8985A; box-shadow: 0 0 8px rgba(232, 152, 90, 0.2); }
+    .sp-label { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: #6B6B6B; width: 44px; text-align: right; flex-shrink: 0; }
     .sp-row.speaking .sp-label { color: #E8985A; }
     .sp-bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
-    .sp-bar { width: 3px; border-radius: 1px; background: #555; transition: height 0.08s ease-out, background 0.15s; min-height: 2px; }
+    .sp-bar { width: 3px; border-radius: 1px; background: #D0CBC3; transition: height 0.08s ease-out, background 0.15s; min-height: 2px; }
     .sp-row.speaking .sp-bar { background: #E8985A; }
 
     /* ── Demo cursor ─────────────────────────────────── */
@@ -113,7 +122,7 @@
       transition: left 0.45s cubic-bezier(0.4, 0, 0.2, 1), top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
     }
     #demo-cursor.hidden { display: none; }
-    #demo-cursor svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5)); }
+    #demo-cursor svg { width: 20px; height: 20px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25)); }
 
     /* Click ripple */
     .click-ripple {
@@ -148,7 +157,7 @@
     /* ── Intro orb ───────────────────────────────────── */
     #intro-orb-view {
       position: fixed; inset: 0; z-index: 99997;
-      background: #2A2A2A; display: flex; flex-direction: column;
+      background: #F5F0E8; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       transition: opacity 0.5s ease;
     }
@@ -157,45 +166,46 @@
     .orb {
       width: 120px; height: 120px; border-radius: 50%;
       background: radial-gradient(circle at 40% 40%, #f0a96e, #E8985A 60%, #c47a3a);
-      box-shadow: 0 0 40px rgba(232, 152, 90, 0.4);
+      box-shadow: 0 0 40px rgba(232, 152, 90, 0.3);
       transition: transform 0.6s ease, width 0.6s ease, height 0.6s ease, box-shadow 0.6s ease;
     }
     .orb.pulse { animation: orb-pulse 1.6s ease-in-out infinite; }
     @keyframes orb-pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(232, 152, 90, 0.4); }
-      50%      { transform: scale(1.08); box-shadow: 0 0 60px rgba(232, 152, 90, 0.6); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(232, 152, 90, 0.3); }
+      50%      { transform: scale(1.08); box-shadow: 0 0 60px rgba(232, 152, 90, 0.5); }
     }
     .orb-label {
-      margin-top: 20px; font-family: ui-monospace, Consolas, monospace;
-      font-size: 14px; color: #888; letter-spacing: 1px;
+      margin-top: 20px; font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px; color: #6B6B6B; letter-spacing: 1px; font-weight: 500;
     }
     /* Mini orb in corner after shrink */
     #mini-orb {
       position: fixed; top: 48px; left: 12px; z-index: 99997;
       width: 28px; height: 28px; border-radius: 50%;
       background: radial-gradient(circle at 40% 40%, #f0a96e, #E8985A 60%, #c47a3a);
-      box-shadow: 0 0 12px rgba(232, 152, 90, 0.3);
+      box-shadow: 0 0 10px rgba(232, 152, 90, 0.25);
       transition: box-shadow 0.2s;
     }
     #mini-orb.hidden { display: none; }
-    #mini-orb.speaking { box-shadow: 0 0 20px rgba(232, 152, 90, 0.6); }
+    #mini-orb.speaking { box-shadow: 0 0 20px rgba(232, 152, 90, 0.5); }
 
     /* ── Transcript panel ────────────────────────────── */
     #transcript-panel {
       position: fixed; bottom: 48px; left: 0; width: 340px; max-height: 50vh;
-      background: rgba(30, 30, 30, 0.95); border-right: 1px solid #333;
-      border-top: 1px solid #333; z-index: 99998;
+      background: rgba(255, 255, 255, 0.95); border-right: 1px solid #E0DCD4;
+      border-top: 1px solid #E0DCD4; z-index: 99998;
       display: flex; flex-direction: column;
       font-family: ui-monospace, Consolas, monospace; font-size: 12px;
       transition: transform 0.3s ease;
+      backdrop-filter: blur(8px);
     }
     #transcript-panel.hidden { transform: translateX(-100%); }
     .transcript-header {
-      padding: 8px 12px; border-bottom: 1px solid #333; color: #888;
+      padding: 8px 12px; border-bottom: 1px solid #E0DCD4; color: #6B6B6B;
       display: flex; justify-content: space-between; align-items: center;
       flex-shrink: 0; cursor: pointer; user-select: none;
     }
-    .transcript-header:hover { color: #F5F0E8; }
+    .transcript-header:hover { color: #2A2A2A; }
     .transcript-body {
       overflow-y: auto; padding: 8px 12px; flex: 1;
     }
@@ -203,13 +213,15 @@
     .tx-turn .tx-who { font-weight: 600; margin-right: 6px; }
     .tx-turn .tx-who.chloe { color: #E8985A; }
     .tx-turn .tx-who.you { color: #5DCAA5; }
-    .tx-turn .tx-text { color: #F5F0E8; }
+    .tx-turn .tx-text { color: #2A2A2A; }
 
     /* ── Floating call controls ──────────────────────── */
     #call-controls {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
       z-index: 100000; display: flex; gap: 12px; padding: 8px 16px;
-      background: rgba(0, 0, 0, 0.9); border: 1px solid #333; border-radius: 24px;
+      background: rgba(255, 255, 255, 0.95); border: 1px solid #E0DCD4; border-radius: 24px;
+      box-shadow: 0 2px 12px rgba(42, 42, 42, 0.08);
+      backdrop-filter: blur(8px);
     }
     #call-controls.hidden { display: none; }
     .cc-btn {
@@ -218,13 +230,13 @@
       cursor: pointer; transition: background 0.15s;
     }
     .cc-btn svg { width: 18px; height: 18px; }
-    #btn-mute { background: #333; }
-    #btn-mute:hover { background: #444; }
+    #btn-mute { background: #E8E4DC; }
+    #btn-mute:hover { background: #D0CBC3; }
     #btn-mute.muted { background: #E07A7A; }
     #btn-end { background: #E07A7A; }
     #btn-end:hover { background: #c55; }
-    #btn-transcript { background: #333; }
-    #btn-transcript:hover { background: #444; }
+    #btn-transcript { background: #E8E4DC; }
+    #btn-transcript:hover { background: #D0CBC3; }
     #btn-transcript.active { background: #E8985A; }
 
     /* ── End-of-call thank-you screen ──────────────── */
@@ -302,19 +314,19 @@
   <!-- Call controls -->
   <div id="call-controls" class="hidden">
     <button class="cc-btn" id="btn-transcript" title="Toggle transcript">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
     </button>
     <button class="cc-btn" id="btn-mute" title="Mute/Unmute">
-      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
         <line x1="8" y1="23" x2="16" y2="23"/>
       </svg>
     </button>
     <button class="cc-btn" id="btn-end" title="End call">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
         <line x1="1" y1="1" x2="23" y2="23"/>
       </svg>
